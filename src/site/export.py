@@ -185,6 +185,9 @@ def export_live(out: Path):
     from src.sources import sewer_api
     try:                                   # SWMM 6시간 적분용 하수관 수위 이력 (서버처럼 누적된 DB가 없으므로)
         now = datetime.now()
+        from src.alerts import subscriptions
+        subscriptions.init()
+        sewer_api.init_table()
         sewer_api.store(sewer_api.fetch(now - timedelta(hours=3), now))
     except Exception as e:
         log.warning("하수관 이력 수집 실패: %s", e)
