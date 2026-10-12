@@ -29,6 +29,10 @@ os.environ["GMAIL_USER"] = ""
 os.environ["GMAIL_APP_PASSWORD"] = ""
 os.environ["NAVER_MAP_CLIENT_SECRET"] = ""
 
+import logging  # noqa: E402
+
+logging.getLogger("httpx").setLevel(logging.WARNING)   # 요청 URL에 인증키가 들어 있어 로그에 남기지 않음
+
 import json  # noqa: E402
 import threading  # noqa: E402
 from datetime import datetime  # noqa: E402
@@ -144,7 +148,7 @@ with left:
     st.dataframe(pd.DataFrame([{"지번": eng.static.iloc[b].jibun, "점수": round(float(snap.scores[b])),
                                 "등급": GRADE_KO[int(snap.grades[b])] if snap.grades[b] >= 0 else "-",
                                 "개구부 유입": "유입 중" if snap.t_flood[b] == 0 else (f"{snap.t_flood[b]}분 뒤" if snap.t_flood[b] > 0 else "-")}
-                               for b in order if not np.isnan(snap.scores[b])]), hide_index=True, use_container_width=True)
+                               for b in order if not np.isnan(snap.scores[b])]), hide_index=True, width="stretch")
     st.subheader("강우 (10분, mm)")
     series = [(t, v) for t, v in rt.series if t <= snap.t][-36:]
     st.bar_chart(pd.DataFrame({"mm": [v for _, v in series]}, index=[t.strftime("%H:%M") for t, _ in series]))
@@ -168,7 +172,7 @@ with right:
             st.dataframe(pd.DataFrame({"시점": ["지금"] + [f"+{h}분" for h in d["horizons"][1:]],
                                        "등급": [GRADE_KO[v] if v >= 0 else "-" for v in d["level"]],
                                        "물깊이(cm)": [None if v is None else round(v * 100) for v in d["depth"]]}).T,
-                         use_container_width=True)
+                         width="stretch")
             st.markdown("**판정 근거**")
             for line in eng.reasons(snap, bid):
                 st.markdown(f"- {line}")
