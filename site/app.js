@@ -433,12 +433,12 @@ function loadNaver() {
   if (!cfg.naver_client_id) return Promise.reject(new Error('네이버 지도 키가 설정되지 않았습니다'));
   if (!naverLoaded) naverLoaded = new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${cfg.naver_client_id}&submodules=panorama`;
+    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${cfg.naver_client_id}&submodules=panorama,geocoder`;
     // panorama 서브모듈은 본 스크립트 로드 후 따로 받아지므로 생성자가 생길 때까지 기다린다
     s.onload = () => {
       const t0 = Date.now();
       const wait = () => {
-        if (window.naver?.maps?.Panorama) return res();
+        if (window.naver?.maps?.Panorama && window.naver?.maps?.Service) return res();
         if (Date.now() - t0 > 8000) return rej(new Error('네이버 거리뷰 모듈을 불러오지 못했습니다 (키의 Dynamic Map 사용 설정과 등록 URL을 확인하세요)'));
         setTimeout(wait, 100);
       };

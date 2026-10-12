@@ -87,13 +87,53 @@
       alert_timeline: mode === 'replay' ? (rec.timeline || []).filter(a => a.t.slice(0, 16) <= st.cycle_time.slice(0, 16)) : null};
   }
 
+  // 점이 건물 안에 있으면 그 건물, 아니면 30m 안 가장 가까운 건물 (서버 _bid_at과 같은 규칙)
+  function bidAt(all, lng, lat) {
+    const inside = (p, x, y) => {
+      let c = false;
+      for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+        if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) c = !c;
+      }
+      return c;
+    };
+    let best = null, bd = Infinity;
+    const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540;
+    for (const b of all) {
+      if (inside(b.p, lng, lat)) return b.id;
+      for (const [x, y] of b.p) {
+        const d = Math.hypot((x - lng) * kx, (y - lat) * ky);
+        if (d < bd) { bd = d; best = b.id; }
+      }
+    }
+    return bd < 30 ? best : null;
+  }
+
+  // 네이버 지도 JS의 geocoder 서브모듈 (Client ID만 사용, Secret 불필요) — 도로명·건물명 검색
+  async function geocode(q) {
+    if (typeof loadNaver !== 'function') throw new Error('지도 모듈 없음');
+    await loadNaver();
+    const query = q.includes('관악구') ? q : `서울특별시 관악구 ${q}`;
+    return new Promise((res, rej) => naver.maps.Service.geocode({query}, (status, r) =>
+      status === naver.maps.Service.Status.OK ? res(r.v2.addresses || []) : rej(new Error('네이버 주소 검색 실패'))));
+  }
+
   async function search(q) {
     const all = (await get('data/buildings.json')).buildings;
     const jb = (q.includes('신림동') ? q.split('신림동').pop() : q).replace(/번지/g, '').trim();
-    let hit = all.filter(b => b.j === jb);
-    let source = '지번 검색';
-    if (!hit.length) { hit = all.filter(b => b.j.startsWith(jb)).slice(0, 10); source = '지번 앞부분 검색 (공개 웹은 도로명 검색 미지원)'; }
-    return {source, results: hit.map(b => ({bid: b.id, address: `서울특별시 관악구 신림동 ${b.j}`}))};
+    const hit = all.filter(b => b.j === jb);
+    const asResult = list => list.map(b => ({bid: b.id, address: `서울특별시 관악구 신림동 ${b.j}`}));
+    if (hit.length) return {source: '지번 검색', results: asResult(hit)};
+    if ((await cfgP).naver_client_id) {
+      try {
+        const res = [];
+        for (const a of await geocode(q)) {
+          const bid = bidAt(all, Number(a.x), Number(a.y));
+          if (bid != null && !res.some(r => r.bid === bid)) res.push({bid, address: a.roadAddress || a.jibunAddress});
+        }
+        if (res.length) return {source: '네이버 주소 검색', results: res};
+      } catch (e) { console.warn(e); }
+    }
+    return {source: '지번 앞부분 검색', results: asResult(all.filter(b => b.j.startsWith(jb)).slice(0, 10))};
   }
 
   window.STATIC_API = async (path, opts) => {
