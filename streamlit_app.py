@@ -35,7 +35,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)   # 요청 URL에 인증키
 
 import json  # noqa: E402
 import threading  # noqa: E402
-from datetime import datetime  # noqa: E402
+from datetime import datetime, timedelta  # noqa: E402
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -81,13 +81,41 @@ def buildings():
     return json.loads((PROCESSED / "buildings_3d.json").read_text(encoding="utf-8"))
 
 
+INPUTS_URL = "https://raw.githubusercontent.com/yunsu0429-netizen/sillim-flood-alert/live-data/live/inputs.json"
+
+
+def load_mirror(live):
+    """한국 공공 API가 해외 클라우드(Streamlit 서버)의 요청을 막을 때: GitHub Actions가 10분마다 받아 둔
+    같은 원자료(강우계·하수관 수위·기상청 예보)를 가져와 이 앱의 DB에 넣는다. 판정은 이 앱이 직접 한다."""
+    import httpx
+    from src.alerts.subscriptions import conn
+    from src.sources import seoul_api, sewer_api
+    d = httpx.get(INPUTS_URL, params={"t": int(time.time() // 60)}, timeout=20).json()
+    with conn() as c:
+        c.executemany("INSERT OR IGNORE INTO rain_obs VALUES(?,?,?,?)", [(*r, d["exported_at"]) for r in d["rain_obs"]])
+        c.executemany("INSERT OR IGNORE INTO sewer_obs VALUES(?,?,?,?)", [tuple(r) for r in d["sewer_obs"]])
+    live.series, live.rain_info = seoul_api.load_series()
+    live.sewer_obs = sewer_api.load_obs(datetime.now() - timedelta(hours=3))
+    live.forecast_series = [(datetime.fromisoformat(t), v) for t, v in d["forecast"]]
+    live.forecast_info = {**(d.get("forecast_info") or {}), "via": "GitHub Actions 수집분"}
+    live.fetch_error = live.sewer_error = None
+    live.mirror_at = d["exported_at"]
+
+
 def live_refresh(live, lock, max_age_min=10):
-    """마지막 판정이 10분 넘었으면 다시 수집·판정 (여러 사람이 동시에 열어도 한 번만)."""
+    """마지막 판정이 10분 넘었으면 다시 수집·판정 (여러 사람이 동시에 열어도 한 번만).
+    직접 수집이 실패하면 GitHub Actions가 받아 둔 원자료로 대신한다."""
     with lock:
-        if live.snap is None or (datetime.now() - live.snap.t).total_seconds() > max_age_min * 60:
+        if live.snap is None or getattr(live, "stale", False) or                 (datetime.now() - live.snap.t).total_seconds() > max_age_min * 60:
             live._fetch_live()
             live._fetch_forecast()
+            if live.fetch_error or not live.series or live.forecast_info.get("error"):
+                try:
+                    load_mirror(live)
+                except Exception as e:
+                    live.mirror_error = str(e)[:200]
             live._run_cycle(datetime.now())
+            live.stale = False
     return live.snap
 
 
@@ -104,9 +132,10 @@ mode = st.sidebar.radio("화면", ["실시간 강우", "2022-08-08 사례"], ind
 if mode == "실시간 강우":
     rt, snap = live, live_refresh(live, lock)
     st.sidebar.write(f"판정 {snap.t:%m/%d %H:%M} · 10분마다 갱신" + ("" if all(KEY_SIG) else " · 인증키 없음(샘플 자료)"))
+    if getattr(live, "mirror_at", None):
+        st.sidebar.caption(f"자료: GitHub Actions 수집분 ({live.mirror_at[11:16]}) — 한국 공공 API가 이 서버의 직접 요청을 막아 대신 사용")
     if st.sidebar.button("지금 다시 판정"):
-        with lock:
-            live._fetch_live(); live._fetch_forecast(); live._run_cycle(datetime.now())
+        live.stale = True
         st.rerun()
 else:
     rt = replay

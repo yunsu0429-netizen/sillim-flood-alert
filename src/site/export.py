@@ -166,6 +166,20 @@ def _tile(lon, lat, z):
     return x, y
 
 
+def live_inputs(live) -> dict:
+    """최근 6시간 강우계·하수관 수위 원자료와 기상청 예보 (공공 자료, 개인정보·인증키 없음)."""
+    from datetime import datetime, timedelta
+    from src.alerts.subscriptions import conn
+    since = (datetime.now() - timedelta(hours=6)).isoformat(timespec="minutes")
+    with conn() as c:
+        rain = [list(r) for r in c.execute("SELECT gauge, ts, mm FROM rain_obs WHERE ts >= ? ORDER BY ts", (since,))]
+        sewer = [list(r) for r in c.execute("SELECT station, ts, level_m, status FROM sewer_obs WHERE ts >= ? ORDER BY ts",
+                                            (since,))]
+    return {"exported_at": datetime.now().isoformat(timespec="seconds"), "rain_obs": rain, "sewer_obs": sewer,
+            "forecast": [[t.isoformat(timespec="minutes"), v] for t, v in live.forecast_series],
+            "forecast_info": _clean(live.forecast_info)}
+
+
 def export_live(out: Path):
     from datetime import datetime, timedelta
     from src.sources import sewer_api
@@ -187,6 +201,7 @@ def export_live(out: Path):
     rk["version"] = stt["version"]
     _dump(out / "state.json", stt)
     _dump(out / "risk.json", rk)
+    _dump(out / "inputs.json", live_inputs(live))       # Streamlit 앱용 원자료 (해외 서버에서 한국 API가 막힐 때)
     bs = building_static(live)
     arr = step_arrays(live, snap)
     chunks: dict[int, dict] = {}
