@@ -58,6 +58,8 @@ class RiskEngine:
         self.h_crit, self.h_crit_src = self._h_critical()
         self._arx = self._load_arx()
         self.model = RiskModel(self.cfg, self.static, idx, dist, self._dem_quality())
+        self.vulnerable = np.zeros(len(self.static), dtype=bool)
+        self.p_static = np.full(len(self.static), np.nan)
         self.model.delta = self._load_static_prior()
         self.horizons = list(self.cfg["horizons_min"])
         self._cur = np.full(len(self.static), -1)
@@ -100,9 +102,16 @@ class RiskEngine:
         path = ROOT / sp.get("path", "data/calibration/seoul/improve/static_prior.parquet")
         if not sp.get("enabled", False) or not path.exists() or "gid" not in self.static:
             return np.zeros(len(self.static))
-        d = pd.read_parquet(path, columns=["gid", "delta"]).drop_duplicates("gid").set_index("gid").delta
+        d = pd.read_parquet(path, columns=["gid", "delta", "p_static"]).drop_duplicates("gid").set_index("gid")
         lim = float(sp.get("max_abs_delta", 30))
-        return np.clip(self.static.gid.map(d).fillna(0).to_numpy(dtype=float), -lim, lim)
+        # 평상시 취약 건물: 반지하 후보 중 정적 취약성 상위 top_pct% → 지도 테두리 (등급과 별개)
+        p = self.static.gid.map(d.p_static).to_numpy(dtype=float)
+        top = float((self.cfg.get("vulnerable") or {}).get("top_pct", 10))
+        ok = self.banjiha & ~np.isnan(p)
+        cut = np.quantile(p[ok], 1 - top / 100) if ok.any() else np.inf
+        self.vulnerable = ok & (np.nan_to_num(p, nan=-1) >= cut)
+        self.p_static = p
+        return np.clip(self.static.gid.map(d.delta).fillna(0).to_numpy(dtype=float), -lim, lim)
 
     def _load_arx(self) -> dict:
         """C. 수위계별 ARX 계수 (src/calibration/sewer_forecast.py 결과). 없으면 빈 dict → 지속 예측."""
@@ -327,6 +336,12 @@ class RiskEngine:
                 out.append(f"자치구 강우 기준({rule.get(dg.get('rule'), dg.get('rule'))}) "
                            f"{'충족 → 건물 기준으로 경고 이상 가능' if g[0] else '미충족 → 최대 주의'}"
                            + (f", 60분 안 충족 예상" if (not g[0] and g.any()) else ""))
+        if self.vulnerable[bid]:
+            top = (self.cfg.get("vulnerable") or {}).get("top_pct", 10)
+            out.append(f"평상시 취약 건물 (과거 침수·저지대·침수예상도 기준 신림동 반지하 상위 {top:g}%) — 비가 오면 먼저 확인할 곳")
+        wm = self.cfg.get("watch_min")
+        if wm and (rf is None or rf["P60"] < wm["rain60_mm"]) and int(snap.grades[bid]) <= 0:
+            out.append(f"60분 강우 {wm['rain60_mm']:g}mm 미만·하수관 {wm['sewer_util'] * 100:.0f}% 미만이라 등급을 띄우지 않음 (비·물이 있을 때만 주의 이상)")
         dl = float(self.model.delta[bid])
         sh = float(dg.get("theta_shift", 0)) if dg.get("enabled") and snap.ctx.gate is not None else 0.0
         if dl or sh:

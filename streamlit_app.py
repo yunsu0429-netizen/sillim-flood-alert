@@ -165,10 +165,17 @@ for b in B["buildings"]:
 w, s_, e, n = B["meta"]["bounds"]
 layer = pdk.Layer("PolygonLayer", rows, get_polygon="polygon", get_elevation="h", get_fill_color="color",
                   extruded=True, pickable=True, auto_highlight=True)
+vul = eng.vulnerable
+outline = [{"path": [[x, y, b["h"] + (b.get("bd") or 0) + 0.5] for x, y in b["p"] + b["p"][:1]]}
+           for b in B["buildings"] if b["b"] and vul[b["id"]]]
+vlayer = pdk.Layer("PathLayer", outline, get_path="path", get_color=[123, 44, 191, 230], get_width=2.5,
+                   width_units="pixels", width_min_pixels=1.5)
 view = pdk.ViewState(longitude=(w + e) / 2, latitude=(s_ + n) / 2, zoom=14, pitch=50, bearing=-20)
-st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view, map_style="light",
+st.pydeck_chart(pdk.Deck(layers=[layer, vlayer], initial_view_state=view, map_style="light",
                          tooltip={"text": "신림동 {jibun}\n{grade}"}), height=560)
-st.caption("색: 초록 낮음 · 노랑 주의 · 주황 경고 · 빨강 위험 · 회색 반지하 후보 아님. 경고 이상은 관악구 강우량계가 서울시 침수예보 기준을 넘었을 때만.")
+st.caption("색: 초록 낮음 · 노랑 주의 · 주황 경고 · 빨강 위험 · 회색 반지하 후보 아님. 주의 이상은 비(60분 3mm 이상)나 물이 있을 때만, "
+           "경고 이상은 관악구 강우량계가 서울시 침수예보 기준을 넘었을 때만. "
+           f"보라 테두리 = 평상시 취약 건물 {int(vul.sum()):,}동 (과거 침수·저지대·침수예상도 기준 상위 10%, 등급과 별개).")
 
 left, right = st.columns([1, 1])
 with left:

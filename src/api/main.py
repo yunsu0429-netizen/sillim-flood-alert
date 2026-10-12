@@ -197,7 +197,9 @@ def state(mode: str = "live", step: int = 0):
                           "LOW": int((conf < cl[0]).sum())},
            "openings": {"buildings_with_input": rt.engine.model.imputed["n"] if rt.engine.model.imputed else 0,
                         "imputed_sill_m": _num(rt.engine.model.imputed["sill"], 2) if rt.engine.model.imputed else None},
-           "sewer": _sewer_summary(rt, s)}
+           "sewer": _sewer_summary(rt, s),
+           "vulnerable": [int(b) for b in np.flatnonzero(rt.engine.vulnerable)],
+           "vulnerable_top_pct": (rt.p["risk_model"].get("vulnerable") or {}).get("top_pct", 10)}
     if mode == "live":
         last_obs = live.series[-1][0] if live.series else None
         out["sim_time"] = datetime.now().isoformat(timespec="seconds")
@@ -236,7 +238,8 @@ def building(bid: int, mode: str = "live", step: int = 0):
             "rel_elev_m": _num(r.rel_elev_m), "slope_pct": _num(r.slope_pct),
             "openings": subscriptions.openings_for(bid), "subscribers": subscriptions.subscriber_count(bid),
             "source": getattr(r, "src_label", None),
-            "gl_note": "지반고는 90m 해상도 DEM 보간값으로 실제와 수 m 차이가 날 수 있음"}
+            "gl_note": "지반고는 90m 해상도 DEM 보간값으로 실제와 수 m 차이가 날 수 있음",
+            "vulnerable": bool(rt.engine.vulnerable[bid])}
     if not r.is_banjiha:
         return base | {"grade": -1, "reasons": ["반지하 후보가 아님 (지하층 없음 또는 비주거)"]}
     d = rt.engine.detail(s, bid)

@@ -42,6 +42,8 @@
     if (g == null) out.push('자치구 강우량계 자료 없음 → 자치구 기준 없이 건물 기준만으로 판정');
     else out.push(`자치구 강우 기준(${GATE_RULE}) ${g[0] ? '충족 → 건물 기준으로 경고 이상 가능' : '미충족 → 최대 주의'}` +
       (!g[0] && g.some(Boolean) ? ', 60분 안 충족 예상' : ''));
+    if ((st.vulnerable || []).includes(B.id)) out.push(`평상시 취약 건물 (과거 침수·저지대·침수예상도 기준 신림동 반지하 상위 ${st.vulnerable_top_pct || 10}%) — 비가 오면 먼저 확인할 곳`);
+    if ((!c || c.r60 < 3) && x.g <= 0) out.push('60분 강우 3mm 미만·하수관 70% 미만이라 등급을 띄우지 않음 (비·물이 있을 때만 주의 이상)');
     if (s.dl || g != null) {
       const base = st.level_high + (s.dl || 0);
       out.push(`건물 취약성(과거 침수·지형·구조·침수예상도) 반영 경고 기준 ${Math.round(base)}점` +
@@ -64,7 +66,8 @@
       use: rec?.static.use ?? B.u, structure: rec?.static.structure ?? '', approved: rec?.static.approved ?? null,
       floors_up: B.fu, floors_down: B.fd, is_banjiha: !!B.b, gl_m: rec?.static.gl ?? null, rel_elev_m: rec?.static.rel ?? null,
       openings: rec?.static.ops ?? [], subscribers: 0, source: rec?.static.src ?? null,
-      gl_note: '지반고는 90m 해상도 DEM 보간값으로 실제와 수 m 차이가 날 수 있음'};
+      gl_note: '지반고는 90m 해상도 DEM 보간값으로 실제와 수 m 차이가 날 수 있음',
+      vulnerable: (st.vulnerable || []).includes(bid)};
     if (!B.b || !rec) return {...base, grade: -1, reasons: ['반지하 후보가 아님 (지하층 없음 또는 비주거)']};
     const s = rec.static, x = rec.steps[mode === 'replay' ? step : 0];
     const t0 = new Date(st.cycle_time);

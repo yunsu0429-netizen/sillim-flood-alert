@@ -10,6 +10,8 @@ const $ = id => document.getElementById(id);
 let cfg, meta, buildings = [], grades = [], scores = [], riskVersion = -1, stateCache, selected = null;
 let deckgl, chart, naverLoaded = null;
 let sewerStations = [];
+let vulnerable = new Set();   // 평상시 취약 건물 (정적 취약성 상위) → 등급 색과 별개로 보라 테두리
+const VULN = [123, 44, 191];
 let mode = 'live';   // 'live' 실시간 | 'replay' 2022-08-08 사례
 // 재생 상태는 브라우저마다 따로 둔다 (다른 사람의 재생 조작과 무관)
 const player = {step: 0, playing: false, speed: 60, lastTick: 0};
@@ -92,7 +94,13 @@ function layers() {
     getFillColor: s => s.util == null ? [120, 120, 120] : s.util >= 1 ? [214, 49, 43] : s.util >= 0.9 ? [240, 124, 30] : s.util >= 0.7 ? [242, 194, 48] : [47, 127, 216],
     updateTriggers: {getFillColor: `${mode}:${riskVersion}`, getElevation: `${mode}:${riskVersion}`},
   });
-  return [terrain, ctx, below, above, sewer, sel];
+  const vul = new PathLayer({
+    id: 'vulnerable', data: banjiha.filter(b => vulnerable.has(b.id)),
+    getPath: b => [...ring3d(b, (b.z ?? 0) + b.h + 0.4), ring3d(b, (b.z ?? 0) + b.h + 0.4)[0]],
+    getColor: [...VULN, 230], getWidth: 2.5, widthUnits: 'pixels', widthMinPixels: 1.5,
+    updateTriggers: {data: vulnerable.size},
+  });
+  return [terrain, ctx, below, above, vul, sewer, sel];
 }
 
 function initDeck() {
@@ -181,6 +189,7 @@ function renderState(st) {
   $('riskSummary').innerHTML = `60분 안 개구부 유입 예상 <b>${st.flood_soon}</b>동 · 신뢰도 높음 ${cf.HIGH} / 보통 ${cf.MEDIUM} / 낮음 ${cf.LOW}` +
     `<br>개구부 입력 ${op.buildings_with_input}동, 나머지는 평균 문턱 ${op.imputed_sill_m != null ? Math.round(op.imputed_sill_m * 100) + 'cm' : '-'}로 대체 · 모델 ${st.model_version}`;
   sewerStations = st.sewer || [];
+  if (st.vulnerable && st.vulnerable.length !== vulnerable.size) { vulnerable = new Set(st.vulnerable); redraw(); }
   const f = st.forecast;
   const src = st.live ? `기상청 초단기예보 ${st.forecast_rain?.base || ''} 발표` : '재생 모드는 이후 실제값 사용';
   $('forecast').textContent = f[30]
@@ -256,6 +265,7 @@ async function loadDetail(bid) {
     <h3 style="font-size:16px">${d.address}</h3>
     ${d.road && d.road.road ? `<div class="muted small" style="margin:-4px 0 8px">도로명 ${d.road.road}${d.road.building ? ` · ${d.road.building}` : ''}</div>` : ''}
     ${d.is_banjiha ? `<span class="grade" style="background:${hex(gradeColor(g))}">${g >= 0 ? GRADE_KO[g] : '판정 불가'} ${d.score != null ? Math.round(d.score) : ''}</span> ${conf}
+      ${d.vulnerable ? `<span class="conf" style="color:${hex(VULN)};border-color:${hex(VULN)}">평상시 취약</span>` : ''}
       <div class="muted small" style="margin-top:4px">${d.index_label}</div>
       ${bar}<div class="small" style="margin:4px 0">${eta}</div>
       <dl>
@@ -316,7 +326,8 @@ function bboxOf(b) {
 function style2d(b) {
   const sel = selected && selected.id === b.id;
   return {fillColor: hex(gradeColor(grades[b.id])), fillOpacity: 0.75,
-          strokeColor: sel ? '#1f6feb' : '#333', strokeWeight: sel ? 4 : 0.6, strokeOpacity: sel ? 1 : 0.5};
+          strokeColor: sel ? '#1f6feb' : vulnerable.has(b.id) ? hex(VULN) : '#333',
+          strokeWeight: sel ? 4 : vulnerable.has(b.id) ? 2.5 : 0.6, strokeOpacity: sel || vulnerable.has(b.id) ? 1 : 0.5};
 }
 
 function render2d() {

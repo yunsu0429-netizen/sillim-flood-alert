@@ -233,3 +233,12 @@ set FLOOD_RAIN_NET=aws+seoul& set FLOOD_EXTRA_FEATS=1& .venv\Scripts\python -m s
 set FLOOD_EXTRA_FEATS=1& .venv\Scripts\python -m src.calibration.official_compare rules gauge_rules jang extra compare2
 ```
 결과: `data/calibration/seoul/improve/official_compare.json`, `static_prior_v03.parquet`
+
+## 11. 맑은 날 '주의' 표시 수정 (2026-10-12)
+- 문제: 건물별 경계 조정 Δ(§7, §10.3)를 20/40/70 모든 등급 경계에 더해, 취약 건물 1,486동의 '주의' 경계가 2점 이하로 내려갔다.
+  비가 0mm여도 지형 점수(가중치 0.016 → 최대 약 1.6점)만으로 주의가 떴다 (2026-10-12 11:30 실시간: 주의 1,393동, 강우 0mm).
+  Δ는 '경고' 경계(40점)에 대해서만 보정·검증했으므로 주의 경계에 그대로 쓰는 것은 검증되지 않은 가정이었다.
+- 수정 1 (`risk_model.apply_watch_min`, settings `watch_min`): 등급(주의 이상)은 그 시점에 하나라도 있을 때만 —
+  60분 강우 ≥ 3mm(기상청 강수강도 '보통 비' 하한), 하수관 이용률 ≥ 0.7(하수관 점수가 오르기 시작하는 값), 개구부 초과 > 0.
+  경고 이상은 이미 자치구 침수예보 기준(55mm/h 등)이 필요해 §10.4 시험 결과는 바뀌지 않는다. 2022-08-08 재생 20:40 결과도 동일(경고 39·위험 11,484).
+- 수정 2 (settings `vulnerable`): 평상시 취약 건물 = 정적 취약성 p_static 상위 10%(신림동 반지하 1,153동) → 등급 색과 별개로 지도에 보라 테두리, 상세에 '평상시 취약' 표시.

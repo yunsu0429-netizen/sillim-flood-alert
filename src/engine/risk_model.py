@@ -104,6 +104,15 @@ def gate_levels(lv_gated, lv_plain, gate):
     return np.where(gate, np.where(lv_gated >= 2, lv_gated, watch), watch)
 
 
+def apply_watch_min(lv, rain60, util, excess, wm: dict | None):
+    """비도 물도 없으면 등급을 '낮음'으로 (건물별 경계 Δ가 커서 맑은 날에도 주의가 뜨던 문제, docs/references.md §11).
+    조건(하나라도): 60분 강우 ≥ rain60_mm, 하수관 이용률 ≥ sewer_util, 개구부 초과 > 0. 판정 불가(-1)는 그대로."""
+    if not wm:
+        return lv
+    wet = (np.nan_to_num(np.asarray(rain60, dtype=float), nan=0) >= wm.get("rain60_mm", 0))         | (np.nan_to_num(np.asarray(util, dtype=float), nan=0) >= wm.get("sewer_util", 9))         | (np.nan_to_num(np.asarray(excess, dtype=float), nan=0) > 0)
+    return np.where((lv > 0) & ~wet, 0, lv)
+
+
 def surface_depth(sewer_excess, rain_intensity, lowland, cfg):
     """§9 SurfaceDepth (보정 두 가지는 설정으로 끌 수 있음 — settings.yaml surface 참고)."""
     se = np.nan_to_num(np.asarray(sewer_excess, dtype=float), nan=0.0)
@@ -295,6 +304,7 @@ class RiskModel:
                 lv_g = classify(score, np.where(self.banjiha[sel], ex, np.nan), c["levels"], c["override"],
                                 rise30, np.full(len(sel), r60), offset=self.delta[sel] + dg.get("theta_shift", 0))
                 lv = gate_levels(lv_g, lv, bool(ctx.gate[k]))
+            lv = apply_watch_min(lv, np.full(len(sel), r60), util, ex, c.get("watch_min"))
             out["score"][k], out["depth"][k], out["opening_excess"][k] = score, depth, ex
             out["protected_excess"][k], out["util"][k], out["h_pred"][k] = pex, util, hp
             out["rain60"][k] = r60
