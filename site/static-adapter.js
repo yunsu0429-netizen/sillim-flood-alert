@@ -13,7 +13,7 @@
     if (!fresh) { cache.set(url, p); p.catch(() => cache.delete(url)); }
     return p;
   };
-  const cfgP = get('data/config.json');
+  const cfgP = get('data/config.json', true);   // 설정은 캐시 없이 (배포 직후 바로 반영)
   const minute = () => Math.floor(Date.now() / 60000);
   const live = async name => get(`${(await cfgP).live_base}${name}?t=${minute()}`, true);
   const liveCached = async name => get(`${(await cfgP).live_base}${name}?t=${minute()}`);
