@@ -17,10 +17,11 @@ if hasattr(time, "tzset"):
 
 import streamlit as st  # noqa: E402
 
-for k in ("SEOUL_OPEN_API_KEY", "KMA_API_KEY", "NAVER_MAP_CLIENT_ID"):
+KEYS = ("SEOUL_OPEN_API_KEY", "KMA_API_KEY")
+for k in KEYS:
     try:
-        if k in st.secrets and not os.environ.get(k):
-            os.environ[k] = str(st.secrets[k])
+        if k in st.secrets:
+            os.environ[k] = str(st.secrets[k])   # Secrets를 바꾸면 다음 실행 때 바로 반영
     except Exception:          # secrets.toml이 없으면 (로컬 실행) .env 사용
         pass
 os.environ["DB_PATH"] = str(Path(tempfile.gettempdir()) / "sillim_streamlit.db")   # 구독자 없는 빈 DB
@@ -36,7 +37,12 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import pydeck as pdk  # noqa: E402
 
-from src.config import PROCESSED, load_params  # noqa: E402
+from src.config import PROCESSED, load_params, settings  # noqa: E402
+
+for k in KEYS:                 # 이미 불러온 설정 객체에도 반영 (앱 재시작 없이 키 변경 적용)
+    if os.environ.get(k):
+        setattr(settings, k.lower(), os.environ[k])
+KEY_SIG = tuple(bool(os.environ.get(k)) for k in KEYS)
 
 GRADE_KO = ["낮음", "주의", "경고", "위험"]
 COLORS = [[46, 158, 91], [242, 194, 48], [240, 124, 30], [214, 49, 43]]
@@ -52,7 +58,7 @@ st.set_page_config(page_title="신림동 반지하 침수 위험", page_icon="�
 
 # ---------------------------------------------------------------- 엔진 (프로세스당 한 번)
 @st.cache_resource(show_spinner="판정 엔진 준비 중 (처음 한 번, 약 1분)…")
-def runtimes():
+def runtimes(key_sig):
     from src.alerts import subscriptions
     from src.api import main
     from src.api.runtime import LiveRuntime, ReplayRuntime
@@ -82,7 +88,7 @@ def live_refresh(live, lock, max_age_min=10):
 
 
 # ---------------------------------------------------------------- 화면
-live, replay, lock = runtimes()
+live, replay, lock = runtimes(KEY_SIG)     # 키가 새로 생기면 엔진을 다시 만든다
 B = buildings()
 st.title("신림동 반지하 침수 위험")
 st.caption("관악구 신림동 반지하 후보 11,523동 · 침수위험지수 v0.3 (서울 침수흔적도 보정 + 자치구 침수예보 결합). "
@@ -93,7 +99,7 @@ if VERCEL_URL:
 mode = st.sidebar.radio("화면", ["실시간 강우", "2022-08-08 사례"], index=0)
 if mode == "실시간 강우":
     rt, snap = live, live_refresh(live, lock)
-    st.sidebar.write(f"판정 시각 {snap.t:%m/%d %H:%M} · 10분마다 갱신")
+    st.sidebar.write(f"판정 {snap.t:%m/%d %H:%M} · 10분마다 갱신" + ("" if all(KEY_SIG) else " · 인증키 없음(샘플 자료)"))
     if st.sidebar.button("지금 다시 판정"):
         with lock:
             live._fetch_live(); live._fetch_forecast(); live._run_cycle(datetime.now())
@@ -108,12 +114,12 @@ eng = rt.engine
 rf = snap.ctx.rain[0]
 counts = eng.counts(snap.grades)
 c = st.columns(6)
-c[0].metric("판정 시각", f"{snap.t:%m/%d %H:%M}")
+c[0].metric("판정 시각", f"{snap.t:%H:%M}")
 c[1].metric("60분 강우", "-" if rf is None else f"{rf['P60']:.0f} mm")
 for i, k in enumerate(["주의", "경고", "위험"]):
     c[2 + i].metric(k, f"{counts[k]:,}동")
 g = snap.ctx.gate
-c[5].metric("관악구 침수예보 기준", "자료 없음" if g is None else ("충족" if g[0] else "미충족"))
+c[5].metric("관악구 기준", "자료 없음" if g is None else ("충족" if g[0] else "미충족"))
 
 # 3D 지도
 grades = snap.grades
