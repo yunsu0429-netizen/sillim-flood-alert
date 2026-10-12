@@ -474,6 +474,7 @@ async function openStreetView(d) {
     $('pano').innerHTML = `<div style="padding:20px">${e.message}</div>`;
   }
   $('openingForm').classList.toggle('hidden', !!cfg.static);   // 공개 웹은 보기만 (저장은 운영 서버)
+  if (cfg.static) $('svHint').textContent = '공개 웹에서는 거리뷰 보기만 가능합니다 (개구부 입력은 운영 서버). 이미지는 저장하거나 자동 분석하지 않습니다.';
   $('openingForm').onsubmit = async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
