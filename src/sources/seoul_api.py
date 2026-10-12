@@ -8,6 +8,7 @@ SEOUL_OPEN_API_KEY가 없으면 공개 sample 키를 쓰는데, sample은 최근
 """
 import logging
 import sqlite3
+import time
 from datetime import datetime, timedelta
 
 import httpx
@@ -20,6 +21,21 @@ URL = "http://openapi.seoul.go.kr:8088/{key}/json/ListRainfallService/{start}/{e
 GU = "관악구"
 GAUGES = ["신림P", "관악구청"]   # 신림동 안의 신림P를 우선, 두 곳 평균 사용
 MIN_STEPS_R60 = 4                # 최근 60분 중 10분 자료가 4개 미만이면 R60을 계산하지 않음
+
+
+def get(url: str, timeout: float = 20, tries: int = 3) -> httpx.Response:
+    """서울 열린데이터광장 요청. 해외 클라우드(GitHub Actions 등)에서는 응답이 가끔 늦거나 끊겨 재시도한다."""
+    last = None
+    for i in range(tries):
+        try:
+            r = httpx.get(url, timeout=timeout)
+            r.raise_for_status()
+            r.json()                      # 빈 응답·HTML이면 다시
+            return r
+        except Exception as e:            # noqa: BLE001
+            last = e
+            time.sleep(2 * (i + 1))
+    raise last
 
 
 def key_label() -> str:
@@ -36,8 +52,7 @@ def fetch_and_store() -> int:
     """API 호출 → rain_obs에 저장. 새로 들어온 행 수를 반환. 실패 시 예외."""
     key = settings.seoul_open_api_key or "sample"
     end = 60 if settings.seoul_open_api_key else 5    # 2곳 × 30스텝 = 5시간 분량
-    r = httpx.get(URL.format(key=key, start=1, end=end, gu=GU), timeout=15)
-    r.raise_for_status()
+    r = get(URL.format(key=key, start=1, end=end, gu=GU))
     body = r.json().get("ListRainfallService")
     if not body or body.get("RESULT", {}).get("CODE") != "INFO-000":
         raise RuntimeError(f"강우 API 오류: {r.text[:200]}")

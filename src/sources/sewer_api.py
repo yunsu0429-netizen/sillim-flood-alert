@@ -46,7 +46,8 @@ def fetch(start: datetime, end: datetime, gu: str = GU_CODE) -> list[dict]:
     while True:
         url = URL.format(key=settings.seoul_open_api_key, a=a, b=a + 999, gu=gu,
                          s=start.strftime("%Y%m%d%H"), e=end.strftime("%Y%m%d%H"))
-        r = httpx.get(url, timeout=60)
+        from src.sources.seoul_api import get as seoul_get
+        r = seoul_get(url, timeout=60)
         r.raise_for_status()
         data = r.json()
         body = data.get("DrainpipeMonitoringInfo")
