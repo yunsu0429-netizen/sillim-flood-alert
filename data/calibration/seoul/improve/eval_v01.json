@@ -1,0 +1,22 @@
+{
+  "theta40": {
+    "POD": 0.372,
+    "FAR": 0.9962,
+    "CSI": 0.0038,
+    "warned_share": 0.0186,
+    "false_alarm_bldg_per_hit": 259.3266,
+    "timed": 792,
+    "warned_before_damage": 0.2891,
+    "lead_median_min": 10.0
+  },
+  "score": {
+    "train": {
+      "pr_auc": 0.0353,
+      "roc_auc": 0.9243
+    },
+    "test": {
+      "pr_auc": 0.0034,
+      "roc_auc": 0.9212
+    }
+  }
+}

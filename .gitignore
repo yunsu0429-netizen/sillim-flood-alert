@@ -1,0 +1,46 @@
+# 비밀값·개인정보 (절대 올리지 않음)
+.env
+.env.*
+!.env.example
+data/app.db
+data/*.db
+data/outbox/
+.streamlit/secrets.toml
+.claude/
+.vercel
+
+# 개발 산출물
+.venv/
+__pycache__/
+.pytest_cache/
+site/live/
+
+# 원본·대용량 자료 (재생에 필요한 2022-08-08 강우만 예외로 포함)
+data/raw/*
+!data/raw/rainfall/
+data/raw/rainfall/*
+!data/raw/rainfall/10min/
+data/raw/rainfall/10min/*
+!data/raw/rainfall/10min/20220808.csv
+!data/raw/rainfall/10min/20220809.csv
+!data/raw/rainfall/10min_seoul_gauge/
+data/raw/rainfall/10min_seoul_gauge/*
+!data/raw/rainfall/10min_seoul_gauge/20220808.csv
+!data/raw/rainfall/10min_seoul_gauge/20220809.csv
+!data/raw/rainfall/10min_seoul_gauge/stations.csv
+
+# 보정 산출물: 운영에 필요한 계수 파일만 포함
+data/calibration/*
+!data/calibration/seoul/
+data/calibration/seoul/*
+!data/calibration/seoul/improve/
+data/calibration/seoul/improve/*
+!data/calibration/seoul/improve/C_arx_coef.json
+!data/calibration/seoul/improve/static_prior_v03.parquet
+!data/calibration/seoul/improve/official_compare.json
+!data/calibration/seoul/improve/eval_v01.json
+
+# 발표자료·논문 원문 (개인정보·저작권)
+docs/papers/
+docs/*.pptx
+*.pptx

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신림동 반지하 침수 위험 3D</title>
+<link rel="stylesheet" href="style.css?v=10">
+<script src="https://unpkg.com/deck.gl@9.1.14/dist.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="scene"></div>
+<div id="map2dWrap" class="hidden"><div id="map2d"></div></div>
+<div id="viewSwitch" class="panel seg view" role="group" aria-label="지도 보기">
+  <button type="button" data-view="3d" class="on">3D</button>
+  <button type="button" data-view="2d">2D 네이버</button>
+</div>
+<div id="map2dMsg" class="panel hint hidden"></div>
+
+<aside id="left" class="panel">
+  <header>
+    <div class="brand">신림동 반지하 침수 위험</div>
+    <div class="sub">관악구 신림동 · 강우 기반 실시간 위험도</div>
+    <div id="modeSwitch" class="seg" role="group" aria-label="데이터 선택">
+      <button type="button" data-mode="live">실시간 강우</button>
+      <button type="button" data-mode="replay">2022-08-08 사례</button>
+    </div>
+    <div id="modeBadge" class="badge"></div>
+  </header>
+
+  <section>
+    <form id="searchForm" class="row">
+      <input id="searchInput" placeholder="주소 또는 지번 (예: 419-1)" autocomplete="off">
+      <button type="submit">검색</button>
+    </form>
+    <div id="searchResults" class="results"></div>
+  </section>
+
+  <section>
+    <div class="clock"><span id="simTime">--:--</span><span id="rainNow" class="muted"></span></div>
+    <div class="row controls">
+      <button id="btnPlay">재생</button>
+      <button id="btnReset">처음으로</button>
+      <select id="speed">
+        <option value="1">×1</option><option value="10">×10</option>
+        <option value="60" selected>×60</option><option value="180">×180</option><option value="600">×600</option>
+      </select>
+    </div>
+    <div id="liveStatus" class="small muted"></div>
+    <canvas id="rainChart" height="110"></canvas>
+    <div id="chartHint" class="muted small">막대를 클릭하면 그 시각으로 이동합니다.</div>
+  </section>
+
+  <section>
+    <h3>반지하 후보 <span id="banjihaCount"></span></h3>
+    <div id="counts" class="counts"></div>
+    <div id="forecast" class="muted small"></div>
+    <div id="riskSummary" class="small" style="margin-top:6px"></div>
+  </section>
+
+  <section class="grow">
+    <h3>위험 상위 건물</h3>
+    <ol id="topList" class="toplist"></ol>
+  </section>
+
+  <section>
+    <h3>최근 알림 발송</h3>
+    <ul id="alertList" class="alertlist"></ul>
+  </section>
+</aside>
+
+<aside id="right" class="panel hidden">
+  <button id="closeRight" class="close" aria-label="닫기">×</button>
+  <div id="detail"></div>
+</aside>
+
+<div id="legend" class="panel">
+  <div class="lg"><i style="background:#2e9e5b"></i>낮음</div>
+  <div class="lg"><i style="background:#f2c230"></i>주의</div>
+  <div class="lg"><i style="background:#f07c1e"></i>경고</div>
+  <div class="lg"><i style="background:#d6312b"></i>위험</div>
+  <div class="lg"><i style="background:#9a9a9a"></i>비대상/없음</div>
+  <div class="lg"><i style="background:#2f7fd8;border-radius:50%"></i>하수관 수위계(기둥 높이=용량 대비)</div>
+  <div class="muted small" style="width:100%">색은 침수위험지수 v0.3 등급입니다 (서울 침수흔적도 2010~2022로 보정, 2023~2025로 검증). 경고 이상은 관악구 강우량계가 서울시 침수예보 기준을 넘었을 때만 나옵니다.</div>
+  <div id="notice" class="muted small"></div>
+  <div class="muted small">배경지도 © OpenStreetMap contributors · 지형 국토지리정보원 DEM(90m)</div>
+</div>
+
+<div id="svModal" class="modal hidden">
+  <div class="modal-body">
+    <button id="svClose" class="close" aria-label="닫기">×</button>
+    <h3 id="svTitle">거리뷰</h3>
+    <div id="pano"></div>
+    <form id="openingForm" class="opening">
+      <label>종류 <select name="kind"><option value="window">창문</option><option value="door">현관/출입구</option></select></label>
+      <label>바깥 지면 기준 문턱 높이 (m) <input name="sill" type="number" step="0.01" required placeholder="예: 0.14"></label>
+      <label>폭 (m) <input name="width" type="number" step="0.01"></label>
+      <label>차수판 높이 (m) <input name="barrier" type="number" step="0.01" placeholder="없으면 비움"></label>
+      <label class="wide">메모 <input name="note" placeholder="예: 방범창 있음, 촬영 2024-05"></label>
+      <button type="submit">개구부 저장</button>
+      <span id="openingMsg" class="muted small"></span>
+    </form>
+    <div class="muted small">거리뷰 화면을 보고 사람이 판독해 입력합니다. 이미지는 저장하거나 자동 분석하지 않습니다.</div>
+  </div>
+</div>
+
+<script src="app.js?v=10"></script>
+</body>
+</html>

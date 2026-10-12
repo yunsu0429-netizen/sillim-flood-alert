@@ -1,0 +1,136 @@
+# 위험 계산 설정. 모든 가중치·임계값은 문헌/법규 근거가 없는 "초기 가정값"이며
+# 과거 침수 사례(2022-08-08 등)로 보정해야 한다. 근거 정리는 README 참고.
+
+region:
+  name: 서울특별시 관악구 신림동
+  bjd_code: "1162010200"          # 법정동코드 (건물통합정보 A3)
+  residential_use_codes: ["01000", "02000"]   # 단독주택, 공동주택 (A8)
+
+rain:
+  design_mm_per_hr: 95            # 서울시 방재성능목표(시간당 95mm) — 원문 확인 필요
+  i10_ref_mm_per_hr: 120          # 10분 강도 기준 (가정)
+  w_r60: 0.6                      # 가정
+  w_i10: 0.4                      # 가정
+  h_cap: 1.5
+
+vulnerability:                    # 정적 취약도 V 가중치 (가정). 데이터가 없는 항목은 제외하고 재정규화
+  w_lowland: 0.40
+  w_history: 0.30
+  w_stream: 0.15
+  w_flatness: 0.15
+  lowland_radius_m: 300
+  lowland_full_m: 3.0             # 주변 평균보다 3m 낮으면 저지대 지수 1
+  slope_full_pct: 10.0
+  stream_decay_m: 300
+
+score:
+  base_weight: 0.5                # S = 100 * min(H,1) * (base + (1-base) * V)
+  thresholds: [25, 50, 75]        # MODERATE, HIGH, VERY_HIGH 시작 점수
+  hysteresis_points: 5
+  hysteresis_minutes: 30
+
+alerts:
+  min_grade: 1                    # MODERATE 이상 상승 시 발송
+  min_interval_minutes: 30
+
+engine:
+  cycle_minutes: 10
+  floor_height_m: 3.0
+
+vworld:                           # 브이월드 국가공간정보 GIS건물통합정보 WFS (2026-10-07 응답으로 확인)
+  typename: dt_d010
+  fields:                         # 브이월드 필드명 → 우리 컬럼명 (SHP AL_D010의 A열과 같은 값)
+    src_objectid: src_objectid    # A0
+    gis_idntfc_no: gid            # A1 건물 고유 ID
+    pnu: pnu                      # A2
+    ld_cpsg_code: bjd_code        # A3 법정동코드
+    buld_prpos_code: use_code     # A8 주용도코드
+    strct_code: struct_code       # A10 구조코드
+    use_confm_de: approved        # A13 사용승인일
+    hg: height_raw                # A16 높이(m)
+    ground_floor_co: floors_up    # A26
+    undgrnd_floor_co: floors_down # A27
+  max_features: 1000
+  tile_m: 500
+  domain: "http://localhost:5173" # 브이월드 인증키에 등록한 서비스 URL
+
+# ---------------------------------------------------------------------------
+# 반지하 침수위험 판정 모델 (basement_flood_risk_logic_prototype.md §1–23 기반)
+# 모든 값은 보정(calibration) 전 프로토타입 가정값이다. 공식 재난경보 기준이 아니다.
+risk_model:
+  model_version: v0.3-seoul       # 서울 침수흔적도 보정 + 서울시 강우량계 + 자치구 침수예보 결합 — docs/references.md §10
+  horizons_min: [0, 10, 20, 30, 40, 50, 60]
+  sewer:
+    station_radius_m: 1000        # 건물에서 이 거리 안의 최근접 수위계만 사용
+    stale_minutes: 30             # 마지막 수위가 이보다 오래되면 결측
+    pred_cap_ratio: 1.5           # H_pred 상한 = 1.5 × H_critical
+    predictor: arx                # arx = 강우-수위 반응 모형(서울 2020~2022 학습, docs/references.md §6) / persist / linear(이전 방식)
+    arx_coef: data/calibration/seoul/improve/C_arx_coef.json
+    h_critical_override: {}       # 수위계별 관 용량(m)을 알게 되면 여기에 (예: "21-0001": 1.8)
+  surface:                        # SurfaceDepth = max(0, α·SewerExcess + β·max(0, I − I_drain) + γ·Lowland·wet)
+    alpha: 0.5
+    beta: 0.01                    # m per (mm/h)
+    gamma: 0.15                   # m
+    rain_drain_capacity_mmh: 50   # 0으로 두면 문서 원식(강우 전체 반영)
+    lowland_needs_water: true     # false면 문서 원식(맑은 날에도 저지대 항 반영)
+    lowland_full_m: 3.0           # 주변보다 3m 낮으면 LowlandIndex 1
+    method: swmm                  # swmm = SWMM 수식 시간적분(src/engine/swmm_surface.py), empirical = 위 α·β·γ 식
+    warmup_min: 360               # swmm: 판정 시각 이전 몇 분부터 적분할지 (선행 강우·저류 반영)
+    swmm:                         # 기본값 = data/replay/sillim419_pilot.inp (신림동 419 시범 SWMM 모델)
+      area_m2: 4000               # 건물마다 가상 소유역 0.4ha
+      width_m: 60
+      imperv: 0.75
+      n_imperv: 0.013
+      n_perv: 0.24
+      ds_imperv_mm: 1.5
+      ds_perv_mm: 5.0
+      horton_f0_mmh: 75
+      horton_fmin_mmh: 10
+      horton_decay_h: 4
+      slope_default_pct: 6.7
+      slope_min_pct: 0.5
+      slope_max_pct: 20
+      i_design_mmh: 50            # 우수받이·관 설계 강우강도 (서울 보정; v0.1 = 75)
+      u_start: 0.8                # 이용률이 이 값을 넘으면 받이 유입이 줄기 시작
+      u_full: 1.0                 # 만관이면 유입 0
+      orifice_cda_m2: 0.01        # 맨홀 역류 Cd·면적 (보정 대상)
+      up_ratio: 3.0               # 저지대(Lowland=1)로 넘어오는 윗동네 넘침 배수 (서울 보정; v0.1 = 2)
+      pond_frac: 0.5              # 물이 고이는 면적 비율(도로·골목) (서울 보정; v0.1 = 0.25)
+      street_width_m: 6           # 고인 물이 빠지는 도로 폭
+      n_street: 0.015             # 도로 Manning 조도
+      substep_s: 300               # 반암시적 풀이라 5분 간격도 안정
+      exact: false                # true = SWMM 5 매뉴얼 원식: 소영역별 α(식 3-8·3-9), PctZero, 적분형 Horton+회복(§4.2.3)
+      pct_zero: 0.25              # exact: 웅덩이 없는 불투수 비율 (SWMM 기본 25%)
+      dry_days: 7                 # exact: Horton 회복 완료 일수 → kr = 3.912/dry_days (식 4-14)
+  scores:
+    opening: [[0.0, 0], [0.10, 20], [0.30, 50], [0.50, 75], [999, 100]]   # (구간 상한 m, 점수), 0 이하는 0점
+    sewer: [[0.70, 0], [0.90, 30], [1.00, 60], [999, 100]]               # 이용률 미만 → 점수
+    rain60: [[10, 0], [30, 25], [50, 50], [80, 75], [9999, 100]]          # 60분 강우(mm) 미만 → 점수
+    terrain: [[-0.5, 100], [0.0, 70], [0.5, 40], [1.0, 20], [9999, 0]]   # 상대고도(m) 미만 → 점수
+  weights: {opening: 0.028, sewer: 0.098, rain: 0.858, terrain: 0.016}   # v0.3: AWS+서울시 강우량계로 다시 맞춘 로지스틱 회귀; v0.2 = 0.166/0.178/0.641/0.016
+  static_prior:                   # D. 건물 정적 취약성으로 건물별 경계 조정 (docs/references.md §7)
+    enabled: true
+    path: data/calibration/seoul/improve/static_prior_v03.parquet   # v0.3: 침수예상도·빗물펌프장·불투수율 특성 추가
+    max_abs_delta: 55             # 평가와 같게 경계 θ_i = 10~95점
+  district_gate:                  # §10 자치구 침수예보(서울시 강우량계) AND 건물 기준. 미충족이면 최대 '주의'
+    enabled: true
+    rule: seoul2023               # 침수예보: 1시간 55mm 또는 15분 20mm 초과 (seoul2026 = 침수경보 기준)
+    theta_shift: 15               # 구 발령 중 건물 경계 이동(점). 시험 2023~2025에서 서울시 침수경보보다 CSI·POD 높은 값
+    lookback_min: 180             # 최근 3시간 안에 기준을 넘었으면 발령 유지
+  levels: [20, 40, 70]            # MODERATE, HIGH, VERY_HIGH 시작 점수
+  override:
+    opening_very_high_m: 0.30
+    critical_rise_m_per_min: 0.02 # 30분 상승속도 (2cm/분 = 30분에 60cm)
+    heavy_rain60_mm: 50
+  confidence:
+    weights: {sewer: 0.30, rain: 0.25, elevation: 0.25, building: 0.20}
+    levels: [70, 90]              # MEDIUM, HIGH 시작 점수
+    elevation_quality: {dem90: 50, dem5: 90}
+    rain_quality_replay: 80       # 재생 강우 = 기상청 AWS 10분 실측 3곳 거리가중 (가정 하이토그래프면 40)
+    opening_quality: {observed: 100, manual: 100, ai_estimate: 60, imputed: 30}
+    sewer_quality: {observed: 100, observed_hcrit_estimated: 50, missing: 0}
+  alerts:
+    pre_alert_level: 2            # 10~60분 예보에서 '경고'(HIGH) 이상이면 사전 경보
+    resend_if_earlier_min: 10
+    final_call_min: 20            # 남은 시간이 처음으로 20분 이하가 되면 한 번 더
+    clear_after_min: 60           # 60분 동안 예보가 모두 경고 미만이면 사전경보 상태 해제

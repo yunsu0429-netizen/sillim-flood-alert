@@ -1,0 +1,7 @@
+.venv
+.env
+.claude
+__pycache__
+data/app.db
+data/outbox
+tests

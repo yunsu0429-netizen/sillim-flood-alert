@@ -1,0 +1,208 @@
+[TITLE]
+;;Sillim-dong 419 Pilot Watershed - Semi-basement Flood Prediction
+;;대상지: 서울 관악구 신림동 419-1(제일빌라) 일대, 도림천 유역
+;;경사 방향: 실측 DEM 8방위 샘플링으로 확인 (관악산 자락 -> 신림역/도림천 방향, 북동쪽)
+;;주의: 관망 좌표는 Revit 프로젝트와 동일한 로컬 원점(신림동 419-1, EPSG:5179 949237.4,1942250.3) 기준
+;;주의: 90m DEM 해상도로 원시 표고 샘플이 불규칙(38.5→24.1→22.2m)하여, 실제 도로는 완만하게 꺾이며
+;;      내려간다고 가정하고 6.7% 평균 경사로 선형 보간하여 맨홀 지반고를 산정함(가정치, 실측 보정 필요)
+;;강우: 기상청 AWS 509 관악 실측 분단위 자료는 로그인 필요로 미확보. Huff 3사분위 표준분포 + 보도된
+;;      실측 첨두강도(130mm/hr)로 역산한 근사 하이토그래프 사용(하단 [TIMESERIES] 비고 참조)
+
+[OPTIONS]
+FLOW_UNITS           CMS
+INFILTRATION         HORTON
+FLOW_ROUTING         DYNWAVE
+LINK_OFFSETS         DEPTH
+MIN_SLOPE            0
+ALLOW_PONDING        NO
+SKIP_STEADY_STATE    NO
+START_DATE           08/08/2022
+START_TIME           18:00:00
+REPORT_START_DATE    08/08/2022
+REPORT_START_TIME    18:00:00
+END_DATE             08/09/2022
+END_TIME             02:00:00
+SWEEP_START          01/01
+SWEEP_END            12/31
+DRY_DAYS             0
+REPORT_STEP          00:05:00
+WET_STEP             00:05:00
+DRY_STEP             01:00:00
+ROUTING_STEP         0:00:30
+INERTIAL_DAMPING     PARTIAL
+NORMAL_FLOW_LIMITED  BOTH
+FORCE_MAIN_EQUATION  H-W
+VARIABLE_STEP        0.75
+LENGTHENING_STEP     0
+MIN_SURFAREA         1.14
+MAX_TRIALS           8
+HEAD_TOLERANCE       0.0015
+SYS_FLOW_TOL         5
+LAT_FLOW_TOL         5
+
+[RAINGAGES]
+;;Name          Format    Interval SCF      Source
+;;기상청 AWS 509 관악(서울 관악구 신림동) 관측소 기준. 실제 분단위 값은 팀원이 기상자료개방포털에서
+;;2022-08-08 18:00~08-09 02:00 구간을 받아 [TIMESERIES] Aug8_2022 에 채워넣어야 함(현재 PLACEHOLDER)
+RG509_Gwanak    INTENSITY 0:05     1.0      TIMESERIES Aug8_2022
+
+[SUBCATCHMENTS]
+;;Name  Raingage       Outlet   Area  %Imperv Width %Slope CurbLen
+S0      RG509_Gwanak   MH0      0.30  80      50    6.7    0
+S1      RG509_Gwanak   MH1      0.40  75      60    6.7    0
+S2      RG509_Gwanak   MH2      0.40  75      60    6.7    0
+S3      RG509_Gwanak   MH3      0.40  75      60    6.7    0
+S4      RG509_Gwanak   MH4      0.40  75      60    6.7    0
+S5      RG509_Gwanak   MH5      0.40  75      60    6.7    0
+S6      RG509_Gwanak   OUTFALL  0.40  75      60    6.7    0
+
+[SUBAREAS]
+;;Subcatchment N-Imperv N-Perv S-Imperv S-Perv PctZero RouteTo
+S0           0.013    0.24   1.5      5.0    25      OUTLET
+S1           0.013    0.24   1.5      5.0    25      OUTLET
+S2           0.013    0.24   1.5      5.0    25      OUTLET
+S3           0.013    0.24   1.5      5.0    25      OUTLET
+S4           0.013    0.24   1.5      5.0    25      OUTLET
+S5           0.013    0.24   1.5      5.0    25      OUTLET
+S6           0.013    0.24   1.5      5.0    25      OUTLET
+
+[INFILTRATION]
+;;Subcatchment MaxRate MinRate Decay DryTime MaxInfil
+S0           75      10      4     7       0
+S1           75      10      4     7       0
+S2           75      10      4     7       0
+S3           75      10      4     7       0
+S4           75      10      4     7       0
+S5           75      10      4     7       0
+S6           75      10      4     7       0
+
+[JUNCTIONS]
+;;Name  Elevation MaxDepth InitDepth SurDepth Aponded
+;;맨홀 지반고: DEM 선형보간(위 비고 참조) - 매설심도 1.2m 적용
+MH0     37.31     1.5      0         0        0   ;; 대상건물(제일빌라) 인접 맨홀 - 건물 유출 접속점
+MH1     34.63     1.5      0         0        0
+MH2     31.96     1.5      0         0        0
+MH3     29.28     1.5      0         0        0
+MH4     26.60     1.5      0         0        0
+MH5     23.93     1.5      0         0        0
+
+[OUTFALLS]
+;;Name    Elevation Type  Stage Gated
+OUTFALL    21.24     FREE        NO
+
+[CONDUITS]
+;;Name From  To       Length Roughness InOffset OutOffset InitFlow MaxFlow
+C1     MH0   MH1      40     0.013     0        0         0        0
+C2     MH1   MH2      40     0.013     0        0         0        0
+C3     MH2   MH3      40     0.013     0        0         0        0
+C4     MH3   MH4      40     0.013     0        0         0        0
+C5     MH4   MH5      40     0.013     0        0         0        0
+C6     MH5   OUTFALL  40     0.013     0        0         0        0
+
+[XSECTIONS]
+;;Link Shape    Geom1 Geom2 Geom3 Geom4 Barrels
+;;관경 450mm - 하수도시설기준 저밀도~중밀도 주거지 표준값 적용(가정치, 서울시 물재생계획과 정식 GIS 확보 시 교체)
+C1   CIRCULAR   0.45  0     0     0     1
+C2   CIRCULAR   0.45  0     0     0     1
+C3   CIRCULAR   0.45  0     0     0     1
+C4   CIRCULAR   0.45  0     0     0     1
+C5   CIRCULAR   0.45  0     0     0     1
+C6   CIRCULAR   0.45  0     0     0     1
+
+[TIMESERIES]
+;;Name        Date       Time   Value
+;;*** 기상청 AWS 509 관악(신림동) 실측 분단위 자료는 로그인 필요로 자동 확보 실패(2026-09-21 시도) ***
+;;대신 Huff 3사분위 표준 무차원 분포(국내 도시수문 설계에 통용되는 단시간 집중호우형)를 채택하고,
+;;당시 보도된 실측 첨두강도 "시간당 130mm 이상"(관악구 일대)에 맞춰 전체 곡선을 스케일링함.
+;;스톰 지속 4시간(19:00~23:00), 5분 간격, 총강우량 236.4mm(첨두강도로 역산된 값, 가정치)
+;;실측 자료 확보 시 이 블록을 통째로 교체할 것.
+Aug8_2022   08/08/2022 18:00  0
+Aug8_2022   08/08/2022 19:00  17.7
+Aug8_2022   08/08/2022 19:05  17.7
+Aug8_2022   08/08/2022 19:10  17.7
+Aug8_2022   08/08/2022 19:15  17.7
+Aug8_2022   08/08/2022 19:20  18.9
+Aug8_2022   08/08/2022 19:25  23.6
+Aug8_2022   08/08/2022 19:30  23.6
+Aug8_2022   08/08/2022 19:35  23.6
+Aug8_2022   08/08/2022 19:40  23.6
+Aug8_2022   08/08/2022 19:45  26.0
+Aug8_2022   08/08/2022 19:50  29.5
+Aug8_2022   08/08/2022 19:55  29.5
+Aug8_2022   08/08/2022 20:00  29.5
+Aug8_2022   08/08/2022 20:05  29.5
+Aug8_2022   08/08/2022 20:10  36.6
+Aug8_2022   08/08/2022 20:15  41.4
+Aug8_2022   08/08/2022 20:20  41.4
+Aug8_2022   08/08/2022 20:25  41.4
+Aug8_2022   08/08/2022 20:30  41.4
+Aug8_2022   08/08/2022 20:35  65.0
+Aug8_2022   08/08/2022 20:40  70.9
+Aug8_2022   08/08/2022 20:45  70.9
+Aug8_2022   08/08/2022 20:50  70.9
+Aug8_2022   08/08/2022 20:55  70.9
+Aug8_2022   08/08/2022 21:00  130.0
+Aug8_2022   08/08/2022 21:05  130.0
+Aug8_2022   08/08/2022 21:10  130.0
+Aug8_2022   08/08/2022 21:15  130.0
+Aug8_2022   08/08/2022 21:20  128.8
+Aug8_2022   08/08/2022 21:25  124.1
+Aug8_2022   08/08/2022 21:30  124.1
+Aug8_2022   08/08/2022 21:35  124.1
+Aug8_2022   08/08/2022 21:40  124.1
+Aug8_2022   08/08/2022 21:45  105.2
+Aug8_2022   08/08/2022 21:50  76.8
+Aug8_2022   08/08/2022 21:55  76.8
+Aug8_2022   08/08/2022 22:00  76.8
+Aug8_2022   08/08/2022 22:05  76.8
+Aug8_2022   08/08/2022 22:10  59.1
+Aug8_2022   08/08/2022 22:15  47.3
+Aug8_2022   08/08/2022 22:20  47.3
+Aug8_2022   08/08/2022 22:25  47.3
+Aug8_2022   08/08/2022 22:30  47.3
+Aug8_2022   08/08/2022 22:35  33.1
+Aug8_2022   08/08/2022 22:40  29.5
+Aug8_2022   08/08/2022 22:45  29.5
+Aug8_2022   08/08/2022 22:50  29.5
+Aug8_2022   08/08/2022 22:55  29.5
+Aug8_2022   08/08/2022 23:00  0
+Aug8_2022   08/09/2022 02:00  0
+
+[REPORT]
+INPUT       NO
+CONTROLS    NO
+SUBCATCHMENTS ALL
+NODES       ALL
+LINKS       ALL
+
+[TAGS]
+
+[COORDINATES]
+;;Node   X-Coord  Y-Coord
+;;Revit 로컬 좌표계와 동일 원점(신림동 419-1) 기준, 단위 m
+MH0      0.0      0.0
+MH1      13.7     37.6
+MH2      27.4     75.2
+MH3      41.0     112.8
+MH4      54.7     150.4
+MH5      68.4     187.9
+OUTFALL  82.1     225.5
+
+[VERTICES]
+
+[Polygons]
+;;Subcatchment X-Coord Y-Coord
+S0        -30.0    -10.0
+S0          0.0     20.0
+S0         30.0    -10.0
+S0        -30.0    -10.0
+
+[SYMBOLS]
+;;Gage    X-Coord  Y-Coord
+RG509_Gwanak  -50.0   -50.0
+
+[MAP]
+DIMENSIONS -80.000 -80.000 300.000 300.000
+Units      Meters
+
+[BACKDROP]

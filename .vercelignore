@@ -1,0 +1,5 @@
+# Vercel에는 정적 사이트(site/)만 올린다 — 코드·데이터 원본은 배포하지 않음
+*
+!site
+!site/**
+!vercel.json

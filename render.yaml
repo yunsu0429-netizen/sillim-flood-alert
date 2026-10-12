@@ -1,0 +1,33 @@
+# Render Blueprint: 저장소 연결 후 "New > Blueprint"로 생성. 비밀값(sync: false)은 Render 화면에서 직접 입력.
+services:
+  - type: web
+    name: sillim-flood-alert
+    runtime: docker
+    plan: starter            # 항상 켜져 있어야 실시간 수집·알림이 동작 (free는 15분 무접속 시 잠듦, 디스크 없음)
+    region: singapore
+    healthCheckPath: /api/health
+    disk:
+      name: data
+      mountPath: /var/data   # 구독자·개구부·수집 강우를 보관 (재배포해도 유지)
+      sizeGB: 1
+    envVars:
+      - key: MODE
+        value: live
+      - key: DB_PATH
+        value: /var/data/app.db
+      - key: PUBLIC_BASE_URL
+        sync: false          # 예: https://sillim-flood-alert.onrender.com (메일 속 링크에 사용)
+      - key: ADMIN_TOKEN
+        generateValue: true  # 개구부 입력용. 관리자는 ?admin=<값> 으로 한 번 접속하면 브라우저에 저장됨
+      - key: SEOUL_OPEN_API_KEY
+        sync: false
+      - key: KMA_API_KEY
+        sync: false
+      - key: NAVER_MAP_CLIENT_ID
+        sync: false
+      - key: NAVER_MAP_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false

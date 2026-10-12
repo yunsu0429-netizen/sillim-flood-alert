@@ -1,0 +1,14 @@
+jibun,kind,sill_above_ground_m,width_m,height_m,barrier_m,source,note,quality
+419-1,window,0.14,2.3,1.11,,study1 카카오 스트리트뷰 사진 추정 (2026-07 촬영),방범창 포함 / 현장 실측 아님,manual
+419-1,door,0.0,1.2,2.0,,study1 추정,계단으로 반지하 출입 - 보도 높이에서 바로 유입,manual
+419-27,door,0.05,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 외부계단 아래 출입문, 통로 바닥과 거의 같은 높이",ai_estimate
+419-21,window,0.1,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 외부계단 아래 반지하 창, 하단이 마당 포장면 바로 위",ai_estimate
+419-22,window,0.25,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 가로형 반지하 창, 벽돌 줄눈 기준 하단 약 25cm",ai_estimate
+419-44,window,0.05,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 도로에 면한 반지하 창 2개, 하단이 아스팔트에 거의 닿음",ai_estimate
+419-20,door,0.15,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 도로에 면한 유리 출입문, 한 단 높이 약 15cm (반지하 직접 출입구인지 불확실)",ai_estimate
+419-24,window,0.1,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 방범창 달린 반지하 창, 보도 바로 위",ai_estimate
+419-51,door,0.1,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 도로에 면한 출입문, 문턱 약 10cm",ai_estimate
+419-25,door,0.1,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 외부계단 아래 작은 반지하 출입문, 하단 약 10cm",ai_estimate
+419-13,window,0.05,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 벽 하단 반지하 창(불투명), 지면 바로 위",ai_estimate
+419-37,door,0.0,,,,Claude AI 육안 추정(네이버 거리뷰),Claude AI 육안 추정 · 도로 높이와 같은 주차장 입구 (1층 출입구는 계단 위),ai_estimate
+419-14,window,0.3,,,,Claude AI 육안 추정(네이버 거리뷰),"Claude AI 육안 추정 · 세로 방범창 달린 반지하 창, 하단이 지면 위 약 30cm",ai_estimate
