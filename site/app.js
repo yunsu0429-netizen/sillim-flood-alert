@@ -557,6 +557,8 @@ async function main() {
   for (const btn of document.querySelectorAll('#modeSwitch button')) btn.onclick = () => setMode(btn.dataset.mode);
   applyModeUi();
   $('notice').textContent = cfg.notice;
+  if (cfg.streamlit_url) $('notice').insertAdjacentHTML('beforeend',
+    ` · <a href="${cfg.streamlit_url}" target="_blank" rel="noopener">Streamlit 버전(판정 서버)</a>`);
   const data = await api('/api/buildings');
   meta = data.meta; buildings = data.buildings;
   for (const b of buildings) (b.b ? banjiha : others).push(b);

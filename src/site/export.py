@@ -119,8 +119,8 @@ def export_static(out: Path):
     live, rp = main.live, main.replay_rt
     cfg = _clean(main.config())
     cfg.update({"static": True, "gmail": False, "naver_client_id": os.environ.get("NAVER_MAP_CLIENT_ID") or None,
-                "live_base": os.environ.get("LIVE_BASE", "live/"), "chunk": CHUNK,
-                "streamlit_url": os.environ.get("STREAMLIT_URL") or None})
+                "live_base": os.environ.get("LIVE_BASE", "https://raw.githubusercontent.com/yunsu0429-netizen/sillim-flood-alert/live-data/live/"), "chunk": CHUNK,
+                "streamlit_url": os.environ.get("STREAMLIT_URL", "https://sillim-flood-alert.streamlit.app")})
     cfg["modes"]["live"]["label"] = "실시간: 서울시 강우량계 신림P·관악구청 + 기상청 초단기예보 (10분마다 갱신)"
     _dump(out / "config.json", cfg)
     (out / "buildings.json").write_bytes((PROCESSED / "buildings_3d.json").read_bytes())
